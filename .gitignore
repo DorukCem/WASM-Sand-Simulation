@@ -1,0 +1,17 @@
+/target
+# Rust artifacts
+Cargo.lock
+
+# Compiled wasm files
+**/*.wasm
+
+# Node.js artifacts
+node_modules/
+
+# webpack artifacts
+dist/
+
+# npm artifacts
+package-lock.json
+
+.vscode/
