@@ -7,6 +7,9 @@ const CELL_SIZE = 15; // px
 const GRID_COLOR = "#CCCCCC";
 const DEAD_COLOR = "#FFFFFF";
 const ALIVE_COLOR = "#000000";
+const CURSOR_SIZE = CELL_SIZE*4;
+const CURSOR_BORDER_WIDTH = 4;
+const CURSOR_COLOR = "#000000"
 
 // Construct the universe, and get its width and height.
 const universe = Universe.new();
@@ -22,11 +25,15 @@ canvas.width = (CELL_SIZE + 1) * width + 1;
 const ctx = canvas.getContext('2d');
 const playPauseButton = document.getElementById("play-pause");
 
+let mousePos = {x: 0, y: 0}
 let animationId = null;
 
 const renderLoop = () => {
+  
   drawGrid();
   drawCells();
+  drawCursor(mousePos);
+  
 
   universe.tick();
 
@@ -86,6 +93,22 @@ const drawCells = () => {
   ctx.stroke();
 };
 
+function drawCursor(pos) {
+  ctx.strokeStyle = CURSOR_COLOR;
+  ctx.lineWidth = CURSOR_BORDER_WIDTH;
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, CURSOR_SIZE/2, 0, 2*Math.PI);
+  ctx.stroke();
+}
+
+function getMousePos(evt) {
+  var rect = canvas.getBoundingClientRect();
+  return {
+    x: evt.clientX - rect.left,
+    y: evt.clientY - rect.top
+  };
+}
+
 const play = () => {
   playPauseButton.textContent = "⏸";
   renderLoop();
@@ -121,6 +144,10 @@ canvas.addEventListener("click", event => {
 
   drawGrid();
   drawCells();
+});
+
+canvas.addEventListener("mousemove", event => {
+  mousePos =  getMousePos(event);
 });
 
 drawGrid();

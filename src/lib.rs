@@ -150,7 +150,7 @@ impl Universe {
         }
     }
 
-    pub fn render(&self) -> String {
+    pub fn render_to_console(&self) -> String {
         self.to_string()
     }
 
