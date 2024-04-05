@@ -1,9 +1,9 @@
-import * as wasm from "wasm-sand-sim";
-import { Universe, Cell } from "wasm-sand-sim";
+import { Universe, JsCell } from "wasm-sand-sim";
 // We can directly access WebAssembly's linear memory via memory
 import { memory } from "../pkg/wasm_sand_sim_bg.wasm";
 
-const CELL_SIZE = 5; // px
+// ! I want cell size to be determined by how big the user screen is
+const CELL_SIZE = 15; // px 
 const GRID_COLOR = "#CCCCCC";
 const DEAD_COLOR = "#FFFFFF";
 const ALIVE_COLOR = "#000000";
@@ -70,7 +70,7 @@ const drawCells = () => {
     for (let col = 0; col < width; col++) {
       const idx = getIndex(row, col);
 
-      ctx.fillStyle = cells[idx] === Cell.Dead
+      ctx.fillStyle = cells[idx] === JsCell.Dead
         ? DEAD_COLOR
         : ALIVE_COLOR;
 

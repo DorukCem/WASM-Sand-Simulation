@@ -5,20 +5,42 @@ mod utils;
 /// Run: cd site
 ///      npm run serve
 
+/// When serving the cells to JS we convert them to JsCells because
+/// Java script can only store C style enums memory buffer
+/// Cells: will hold additional info such as velocity and position
+/// JsCell: will only hold information that is needed for rendering( the type of the cell)
 #[wasm_bindgen]
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Cell {
+pub enum JsCell {
     Dead = 0,
-    Alive = 1,
+    Sand = 1,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Sand;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Cell {
+    Dead,
+    Sand(Sand)
 }
 
 impl Cell {
     fn toggle(&mut self) {
         *self = match *self {
-            Cell::Dead => Cell::Alive,
-            Cell::Alive => Cell::Dead,
+            Cell::Dead => Cell::Sand(Sand),
+            Cell::Sand(_) => Cell::Dead,
         };
+    }
+}
+
+impl From<Cell> for JsCell {
+    fn from(cell: Cell) -> Self {
+        match cell {
+            Cell::Dead => JsCell::Dead,
+            Cell::Sand(_) => JsCell::Sand,
+        }
     }
 }
 
@@ -45,23 +67,25 @@ impl Universe {
                 let neighbor_row = (row + delta_row) % self.height;
                 let neighbor_col = (column + delta_col) % self.width;
                 let idx = self.get_index(neighbor_row, neighbor_col);
-                count += self.cells[idx] as u8;
+                if let Cell::Dead = self.cells[idx] {}
+                else {count += 1;}
+                
             }
         }
         count
     }
 
-    /// Get the dead and alive values of the entire universe.
+    /// Get the dead and Sand values of the entire universe.
     pub fn get_cells(&self) -> &[Cell] {
         &self.cells
     }
 
-    /// Set cells to be alive in a universe by passing the row and column
+    /// Set cells to be Sand in a universe by passing the row and column
     /// of each cell as an array.
     pub fn set_cells(&mut self, cells: &[(u32, u32)]) {
         for (row, col) in cells.iter().cloned() {
             let idx = self.get_index(row, col);
-            self.cells[idx] = Cell::Alive;
+            self.cells[idx] = Cell::Sand(Sand);
         }
     }
     
@@ -82,16 +106,16 @@ impl Universe {
                 let next_cell = match (cell, live_neighbors) {
                     // Rule 1: Any live cell with fewer than two live neighbours
                     // dies, as if caused by underpopulation.
-                    (Cell::Alive, x) if x < 2 => Cell::Dead,
+                    (Cell::Sand(_), x) if x < 2 => Cell::Dead,
                     // Rule 2: Any live cell with two or three live neighbours
                     // lives on to the next generation.
-                    (Cell::Alive, 2) | (Cell::Alive, 3) => Cell::Alive,
+                    (Cell::Sand(_), 2) | (Cell::Sand(_), 3) => Cell::Sand(Sand),
                     // Rule 3: Any live cell with more than three live
                     // neighbours dies, as if by overpopulation.
-                    (Cell::Alive, x) if x > 3 => Cell::Dead,
+                    (Cell::Sand(_), x) if x > 3 => Cell::Dead,
                     // Rule 4: Any dead cell with exactly three live neighbours
                     // becomes a live cell, as if by reproduction.
-                    (Cell::Dead, 3) => Cell::Alive,
+                    (Cell::Dead, 3) => Cell::Sand(Sand),
                     // All other cells remain in the same state.
                     (otherwise, _) => otherwise,
                 };
@@ -112,7 +136,7 @@ impl Universe {
         let cells = (0..width * height)
             .map(|i| {
                 if i % 2 == 0 || i % 7 == 0 {
-                    Cell::Alive
+                    Cell::Sand(Sand)
                 } else {
                     Cell::Dead
                 }
@@ -138,8 +162,9 @@ impl Universe {
         self.height
     }
 
-    pub fn cells(&self) -> *const Cell {
-        self.cells.as_ptr()
+    /// This method will be called by javascript to get the memory buffer of our cells
+    pub fn cells(&self) -> *const JsCell {
+        self.cells.iter().map(|&c| JsCell::from(c)).collect::<Vec<JsCell>>().as_ptr()
     }
 
     /// Resets all cells to the dead state.
@@ -147,7 +172,6 @@ impl Universe {
         self.width = width;
         self.cells = (0..width * self.height).map(|_i| Cell::Dead).collect();
     }
-
 
     /// Resets all cells to the dead state.
     pub fn set_height(&mut self, height: u32) {
