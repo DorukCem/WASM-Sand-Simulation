@@ -1,4 +1,4 @@
-import { Universe, JsCell } from "wasm-sand-sim";
+import { Universe, CellType } from "wasm-sand-sim";
 // We can directly access WebAssembly's linear memory via memory
 import { memory } from "../pkg/wasm_sand_sim_bg.wasm";
 
@@ -77,7 +77,7 @@ const drawCells = () => {
     for (let col = 0; col < width; col++) {
       const idx = getIndex(row, col);
 
-      ctx.fillStyle = cells[idx] === JsCell.Dead
+      ctx.fillStyle = cells[idx] === CellType.Dead
         ? DEAD_COLOR
         : ALIVE_COLOR;
 
