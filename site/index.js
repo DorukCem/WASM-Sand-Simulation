@@ -1,4 +1,5 @@
 import { Universe, CellType } from "wasm-sand-sim";
+import fps_logger from "./measure_fps.js"
 // We can directly access WebAssembly's linear memory via memory
 import { memory } from "../pkg/wasm_sand_sim_bg.wasm";
 
@@ -18,7 +19,7 @@ const height = universe.height();
 
 // Give the canvas room for all of our cells and a 1px border
 // around each of them.
-const canvas = document.getElementById("game-of-life-canvas");
+const canvas = document.getElementById("sand-sim-canvas");
 canvas.height = (CELL_SIZE + 1) * height + 1;
 canvas.width = (CELL_SIZE + 1) * width + 1;
 
@@ -29,7 +30,8 @@ let mousePos = {x: 0, y: 0}
 let animationId = null;
 
 const renderLoop = () => {
-  
+  //fps_logger.render();
+
   drawGrid();
   drawCells();
   drawCursor(mousePos);
