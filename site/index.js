@@ -27,16 +27,17 @@ const ctx = canvas.getContext('2d');
 const playPauseButton = document.getElementById("play-pause");
 
 let mousePos = {x: 0, y: 0}
+let mouseGridPos = {row: 0, col: 0}
+let being_held = false
 let animationId = null;
 
 const renderLoop = () => {
   //fps_logger.render();
-
+  setCell();
   drawGrid();
   drawCells();
   drawCursor(mousePos);
   
-
   universe.tick();
 
   animationId = requestAnimationFrame(renderLoop);
@@ -130,7 +131,15 @@ playPauseButton.addEventListener("click", event => {
   }
 });
 
-canvas.addEventListener("click", event => {
+function setCell() {
+  if (being_held){
+    const {row, col} = mouseGridPos;
+    universe.set_cell(row, col, CellType.Sand);
+  }
+}
+
+canvas.addEventListener("mousemove", event => {
+  mousePos =  getMousePos(event);
   const boundingRect = canvas.getBoundingClientRect();
 
   const scaleX = canvas.width / boundingRect.width;
@@ -142,16 +151,23 @@ canvas.addEventListener("click", event => {
   const row = Math.min(Math.floor(canvasTop / (CELL_SIZE + 1)), height - 1);
   const col = Math.min(Math.floor(canvasLeft / (CELL_SIZE + 1)), width - 1);
 
-  universe.set_cell(row, col, CellType.Sand);
-
-  drawGrid();
-  drawCells();
+  mouseGridPos = {row, col}
 });
 
-canvas.addEventListener("mousemove", event => {
-  mousePos =  getMousePos(event);
-});
+canvas.addEventListener('mousedown', function() {
+  being_held = true;
+})
 
+canvas.addEventListener('mouseleave', function() {
+  being_held = false;
+})
+
+canvas.addEventListener('mouseup', function() {
+  being_held = false;
+})
+
+// ------------ executes once
 drawGrid();
 drawCells();
+// ------------
 play();
