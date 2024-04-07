@@ -72,13 +72,11 @@ impl Universe {
         &self.cells
     }
 
-    /// Set cells to be Sand in a universe by passing the row and column
-    /// of each cell as an array.
-    pub fn set_cells(&mut self, cells: &[(u32, u32)]) {
-        for (row, col) in cells.iter().cloned() {
-            let idx = self.get_index(row, col);
-            self.cells[idx].id = CellType::Sand;
-        }
+    fn move_element_into_empty_cell(&mut self, old_idx : usize, new_idx : usize) {
+        let copy_current_cell = self.cells[old_idx];
+        self.cells[new_idx].update_cell(copy_current_cell);
+
+        self.cells[old_idx].kill_cell();
     }
 
     fn update_sand(&mut self, row: u32, col: u32) {
@@ -97,10 +95,8 @@ impl Universe {
             return;
         };
 
-        let copy_current_cell = self.cells[idx];
-        self.cells[new_idx].update_cell(copy_current_cell);
-
-        self.cells[idx].kill_cell();
+        self.move_element_into_empty_cell(idx, new_idx);
+        
     }
 }
 
@@ -177,7 +173,6 @@ impl Universe {
             .as_ptr()
     }
 
-    /// Resets all cells to the dead state.
     pub fn set_width(&mut self, width: u32) {
         self.width = width;
         self.cells = (0..width * self.height)
@@ -185,7 +180,6 @@ impl Universe {
             .collect();
     }
 
-    /// Resets all cells to the dead state.
     pub fn set_height(&mut self, height: u32) {
         self.height = height;
         self.cells = (0..self.width * height)
@@ -194,7 +188,7 @@ impl Universe {
     }
 
     pub fn set_cell(&mut self, row: u32, column: u32, ct: CellType) {
-        // The out bounds check is done in javascript
+        // The out of bounds check is done in javascript
         let idx = self.get_index(row, column);
         self.cells[idx].set_cell(ct);
     }
