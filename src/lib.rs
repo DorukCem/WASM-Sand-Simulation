@@ -21,11 +21,17 @@ pub struct Cell {
 }
 
 impl Cell {
-    fn toggle(&mut self) {
-        self.id = match self.id {
-            CellType::Dead => CellType::Sand,
-            CellType::Sand => CellType::Dead,
-        };
+    fn set_cell(&mut self, ct: CellType) {
+        self.id = ct;
+    }
+
+    fn update_cell(&mut self, ref_cell : Cell) {
+        self.id = ref_cell.id;
+        self.has_been_updated = true;
+    }
+
+    fn kill_cell(&mut self) {
+        self.id = CellType::Dead;
     }
 
     fn new(ct: CellType) -> Self {
@@ -68,28 +74,31 @@ impl Universe {
             self.cells[idx].id = CellType::Sand;
         }
     }
+    
+    fn update_sand(&mut self ,row: u32, col: u32,) {
+        let idx = self.get_index(row, col);
+        let down = self.get_index(row + 1, col);
+        let left = self.get_index(row + 1, col - 1);
+        let right = self.get_index(row + 1, col + 1);
+    
+        let new_idx = if self.is_empty_and_inbound(down) {
+            down
+        } else if self.is_empty_and_inbound(left) {
+            left
+        } else if self.is_empty_and_inbound(right) {
+            right
+        } else {
+            return;
+        };
+        
+        let copy_current_cell = self.cells[idx];
+        self.cells[new_idx].update_cell(copy_current_cell);
+        
+        self.cells[idx].kill_cell();
+
+    }
 }
 
-fn update_sand(row: u32, col: u32, uni: &mut Universe) {
-    let idx = uni.get_index(row, col);
-    let down = uni.get_index(row + 1, col);
-    let left = uni.get_index(row + 1, col - 1);
-    let right = uni.get_index(row + 1, col + 1);
-
-    let new_idx = if uni.is_empty_and_inbound(down) {
-        down
-    } else if uni.is_empty_and_inbound(left) {
-        left
-    } else if uni.is_empty_and_inbound(right) {
-        right
-    } else {
-        return;
-    };
-
-    uni.cells[idx].id = CellType::Dead;
-    uni.cells[new_idx].id = CellType::Sand;
-    uni.cells[new_idx].has_been_updated = true;
-}
 
 /// Public methods, exported to JavaScript.
 #[wasm_bindgen]
@@ -106,10 +115,11 @@ impl Universe {
                 let idx = self.get_index(row, col);
                 let cell = self.cells[idx];
                 if cell.has_been_updated {
+                    utils::log!("cont");
                     continue;
                 }
                 match cell.id {
-                    CellType::Sand => update_sand(row, col, self),
+                    CellType::Sand => self.update_sand(row, col),
                     CellType::Dead => (),
                 }
             }
@@ -179,15 +189,13 @@ impl Universe {
             .collect();
     }
 
-    // ! Turn cell into cell type
-    pub fn toggle_cell(&mut self, row: u32, column: u32) {
+    pub fn set_cell(&mut self, row: u32, column: u32, ct: CellType) {
         let idx = self.get_index(row, column);
-        self.cells[idx].toggle();
+        self.cells[idx].set_cell(ct);
     }
 }
 
 use std::fmt;
-
 // ? Can add more colors as I add more elements
 impl fmt::Display for Universe {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -6,6 +6,7 @@ macro_rules! log {
         web_sys::console::log_1(&format!( $( $t )* ).into());
     }
 }
+pub(crate) use log; 
 
 pub fn set_panic_hook() {
   // When the `console_error_panic_hook` feature is enabled, we can call the
