@@ -5,6 +5,8 @@ mod utils;
 /// Run: cd site
 ///      npm run serve
 
+// ? Since we calculate from top to bottom that creates a few problems relating to who will fall first
+
 /// Javascript can only store C style enums memory buffer
 #[wasm_bindgen]
 #[repr(u8)]
@@ -25,7 +27,7 @@ impl Cell {
         self.id = ct;
     }
 
-    fn update_cell(&mut self, ref_cell : Cell) {
+    fn update_cell(&mut self, ref_cell: Cell) {
         self.id = ref_cell.id;
         self.has_been_updated = true;
     }
@@ -57,7 +59,11 @@ impl Universe {
         (row * self.width + column) as usize
     }
 
-    fn is_empty_and_inbound(&self, idx: usize) -> bool {
+    fn is_empty_and_inbound(&self, row: u32, col: u32) -> bool {
+        if !(row < self.height && col < self.width) {
+            return false; // This also works for -1 which gets converted to 
+        }
+        let idx = self.get_index(row, col);
         idx < self.cells.len() && self.cells[idx].id == CellType::Dead
     }
 
@@ -74,31 +80,29 @@ impl Universe {
             self.cells[idx].id = CellType::Sand;
         }
     }
-    
-    fn update_sand(&mut self ,row: u32, col: u32,) {
+
+    fn update_sand(&mut self, row: u32, col: u32) {
         let idx = self.get_index(row, col);
         let down = self.get_index(row + 1, col);
         let left = self.get_index(row + 1, col - 1);
         let right = self.get_index(row + 1, col + 1);
-    
-        let new_idx = if self.is_empty_and_inbound(down) {
+
+        let new_idx = if self.is_empty_and_inbound(row + 1, col) {
             down
-        } else if self.is_empty_and_inbound(left) {
+        } else if self.is_empty_and_inbound(row + 1, col - 1) { 
             left
-        } else if self.is_empty_and_inbound(right) {
+        } else if self.is_empty_and_inbound(row + 1, col + 1) {
             right
         } else {
             return;
         };
-        
+
         let copy_current_cell = self.cells[idx];
         self.cells[new_idx].update_cell(copy_current_cell);
-        
-        self.cells[idx].kill_cell();
 
+        self.cells[idx].kill_cell();
     }
 }
-
 
 /// Public methods, exported to JavaScript.
 #[wasm_bindgen]
@@ -190,6 +194,7 @@ impl Universe {
     }
 
     pub fn set_cell(&mut self, row: u32, column: u32, ct: CellType) {
+        // The out bounds check is done in javascript
         let idx = self.get_index(row, column);
         self.cells[idx].set_cell(ct);
     }

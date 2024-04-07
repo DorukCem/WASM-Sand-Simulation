@@ -134,7 +134,10 @@ playPauseButton.addEventListener("click", event => {
 function setCell() {
   if (being_held){
     const {row, col} = mouseGridPos;
-    universe.set_cell(row, col, CellType.Sand);
+    if (row >= 0 && row < height && col >= 0 && col < height)
+    {
+      universe.set_cell(row, col, CellType.Sand);
+    } 
   }
 }
 
