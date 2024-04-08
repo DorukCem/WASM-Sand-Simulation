@@ -7,10 +7,18 @@ import { memory } from "../pkg/wasm_sand_sim_bg.wasm";
 const CELL_SIZE = 15; // px 
 const GRID_COLOR = "#CCCCCC";
 const DEAD_COLOR = "#FFFFFF";
-const ALIVE_COLOR = "#000000";
+const SAND_COLOR = "#000000";
+const WATER_COLOR = "#0000FF";
 const CURSOR_SIZE = CELL_SIZE*4;
 const CURSOR_BORDER_WIDTH = 4;
 const CURSOR_COLOR = "#000000"
+
+const cellColors = {
+  [CellType.Dead]: DEAD_COLOR,
+  [CellType.Water]: WATER_COLOR,
+  [CellType.Sand]: SAND_COLOR,
+  // Add more cell types and colors as needed
+};
 
 // Construct the universe, and get its width and height.
 const universe = Universe.new();
@@ -29,6 +37,7 @@ const playPauseButton = document.getElementById("play-pause");
 let mousePos = {x: 0, y: 0}
 let mouseGridPos = {row: 0, col: 0}
 let being_held = false
+let selected_element = CellType.Sand
 let animationId = null;
 
 const renderLoop = () => {
@@ -80,9 +89,7 @@ const drawCells = () => {
     for (let col = 0; col < width; col++) {
       const idx = getIndex(row, col);
 
-      ctx.fillStyle = cells[idx] === CellType.Dead
-        ? DEAD_COLOR
-        : ALIVE_COLOR;
+      ctx.fillStyle = cellColors[cells[idx]];
 
       ctx.fillRect(
         col * (CELL_SIZE + 1) + 1,
@@ -136,7 +143,7 @@ function setCell() {
     const {row, col} = mouseGridPos;
     if (row >= 0 && row < height && col >= 0 && col < height)
     {
-      universe.set_cell(row, col, CellType.Sand);
+      universe.set_cell(row, col, selected_element);
     } 
   }
 }
@@ -168,6 +175,16 @@ canvas.addEventListener('mouseleave', function() {
 canvas.addEventListener('mouseup', function() {
   being_held = false;
 })
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "s" || event.key === "S") {
+    selected_element = CellType.Sand
+  } 
+  else if (event.key === "w" || event.key === "W") {
+    selected_element = CellType.Water
+  }
+  console.log(selected_element)
+});
 
 // ------------ executes once
 drawGrid();

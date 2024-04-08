@@ -14,6 +14,13 @@ mod utils;
 pub enum CellType {
     Dead = 0,
     Sand = 1,
+    Water = 2,
+}
+
+enum Phase {
+    Dead,
+    Solid,
+    Liquid,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,6 +49,17 @@ impl Cell {
             has_been_updated: true,
         };
     }
+
+    fn phase(&self) -> Phase {
+        let id_as_num = self.id as u8;
+        if id_as_num == 0 {
+            return Phase::Dead;
+        }
+        if id_as_num < 2 {
+            return Phase::Liquid;
+        }
+        return Phase::Liquid;
+    }
 }
 
 #[wasm_bindgen]
@@ -59,12 +77,15 @@ impl Universe {
         (row * self.width + column) as usize
     }
 
-    fn is_empty_and_inbound(&self, row: u32, col: u32) -> bool {
+    fn is_empty_and_inbound(&self, row: u32, col: u32) -> Option<(u32, u32)> {
         if !(row < self.height && col < self.width) {
-            return false; // This also works for -1 which gets converted to 
+            return None; // This also works for -1 which gets converted to
         }
         let idx = self.get_index(row, col);
-        idx < self.cells.len() && self.cells[idx].id == CellType::Dead
+        if self.cells[idx].id == CellType::Dead {
+            return Some((row, col));
+        }
+        None
     }
 
     /// Get the dead and Sand values of the entire universe.
@@ -72,7 +93,7 @@ impl Universe {
         &self.cells
     }
 
-    fn move_element_into_empty_cell(&mut self, old_idx : usize, new_idx : usize) {
+    fn move_element_into_empty_cell(&mut self, old_idx: usize, new_idx: usize) {
         let copy_current_cell = self.cells[old_idx];
         self.cells[new_idx].update_cell(copy_current_cell);
 
@@ -81,22 +102,36 @@ impl Universe {
 
     fn update_sand(&mut self, row: u32, col: u32) {
         let idx = self.get_index(row, col);
-        let down = self.get_index(row + 1, col);
-        let left = self.get_index(row + 1, col - 1);
-        let right = self.get_index(row + 1, col + 1);
 
-        let new_idx = if self.is_empty_and_inbound(row + 1, col) {
-            down
-        } else if self.is_empty_and_inbound(row + 1, col - 1) { 
-            left
-        } else if self.is_empty_and_inbound(row + 1, col + 1) {
-            right
-        } else {
-            return;
-        };
+        let positions = vec![(row + 1, col), (row + 1, col - 1), (row + 1, col + 1)];
+        if let Some(new_pos) = positions
+            .iter()
+            .find_map(|x| self.is_empty_and_inbound(x.0, x.1))
+        {
+            let new_idx = self.get_index(new_pos.0, new_pos.1);
 
-        self.move_element_into_empty_cell(idx, new_idx);
-        
+            self.move_element_into_empty_cell(idx, new_idx);
+        }
+    }
+
+    fn update_water(&mut self, row: u32, col: u32) {
+        let idx = self.get_index(row, col);
+
+        let positions = vec![
+            (row + 1, col),
+            (row + 1, col - 1),
+            (row + 1, col + 1),
+            (row, col - 1),
+            (row, col + 1),
+        ];
+        if let Some(new_pos) = positions
+            .iter()
+            .find_map(|x| self.is_empty_and_inbound(x.0, x.1))
+        {
+            let new_idx = self.get_index(new_pos.0, new_pos.1);
+
+            self.move_element_into_empty_cell(idx, new_idx);
+        }
     }
 }
 
@@ -119,8 +154,9 @@ impl Universe {
                     continue;
                 }
                 match cell.id {
-                    CellType::Sand => self.update_sand(row, col),
                     CellType::Dead => (),
+                    CellType::Sand => self.update_sand(row, col),
+                    CellType::Water => self.update_water(row, col),
                 }
             }
         }
