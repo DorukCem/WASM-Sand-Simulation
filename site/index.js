@@ -4,7 +4,7 @@ import fps_logger from "./measure_fps.js"
 import { memory } from "../pkg/wasm_sand_sim_bg.wasm";
 
 // ! I want cell size to be determined by how big the user screen is
-const CELL_SIZE = 15; // px 
+const CELL_SIZE = 8; // px 
 const GRID_COLOR = "#CCCCCC";
 const DEAD_COLOR = "#FFFFFF";
 const SAND_COLOR = "#000000";
@@ -22,6 +22,8 @@ const cellColors = {
 
 // Construct the universe, and get its width and height.
 const universe = Universe.new();
+universe.set_width(64 * 2);
+universe.set_height(64 * 2);
 const width = universe.width();
 const height = universe.height();
 
@@ -41,9 +43,10 @@ let selected_element = CellType.Sand
 let animationId = null;
 
 const renderLoop = () => {
-  //fps_logger.render();
+  fps_logger.render();
   setCell();
-  drawGrid();
+  drawBackground();
+  // drawGrid();
   drawCells();
   drawCursor(mousePos);
   
@@ -55,6 +58,11 @@ const renderLoop = () => {
 const isPaused = () => {
   return animationId === null;
 };
+
+const drawBackground = () => {
+  ctx.fillStyle = "gray";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
 
 const drawGrid = () => {
   ctx.beginPath();
@@ -88,7 +96,9 @@ const drawCells = () => {
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
       const idx = getIndex(row, col);
-
+      if (cells[idx] === CellType.Dead) {
+        continue
+      }
       ctx.fillStyle = cellColors[cells[idx]];
 
       ctx.fillRect(

@@ -7,6 +7,9 @@ mod utils;
 
 // ? Since we calculate from top to bottom that creates a few problems relating to who will fall first
 
+const WIDTH : u32 = 64;
+const HEIGHT : u32 = 64;
+
 /// Javascript can only store C style enums memory buffer
 #[wasm_bindgen]
 #[repr(u8)]
@@ -21,6 +24,8 @@ enum Phase {
     Dead,
     Solid,
     Liquid,
+    Immovable,
+    Gas,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -79,7 +84,7 @@ impl Universe {
 
     fn is_empty_and_inbound(&self, row: u32, col: u32) -> Option<(u32, u32)> {
         if !(row < self.height && col < self.width) {
-            return None; // This also works for -1 which gets converted to
+            return None; // This also works for -1 which gets converted to u32MAX
         }
         let idx = self.get_index(row, col);
         if self.cells[idx].id == CellType::Dead {
@@ -172,8 +177,8 @@ impl Universe {
     pub fn new() -> Universe {
         utils::set_panic_hook(); // If our code panics, we want informative error messages to appear in the developer console
 
-        let width = 64;
-        let height = 64;
+        let width = WIDTH;
+        let height = HEIGHT;
         let tick_count = 0;
 
         let cells = (0..width * height)
