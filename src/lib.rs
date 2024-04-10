@@ -100,7 +100,7 @@ impl Universe {
         None
     }
 
-    fn is_phase(&self, row: u32, col: u32, ele: Phase) -> Option<(u32, u32)>{
+    fn is_phase(&self, row: u32, col: u32, ele: Phase) -> Option<(u32, u32)> {
         if !(row < self.height && col < self.width) {
             return None; // This also works for -1 which gets converted to u32MAX
         }
@@ -116,11 +116,22 @@ impl Universe {
         &self.cells
     }
 
-
     fn find_valid_positions(&self, positions: Vec<(u32, u32)>) -> Vec<(u32, u32)> {
         positions
             .iter()
             .map(|x| self.is_empty_and_inbound(x.0, x.1))
+            .take_while(|x| x.is_some())
+            .flatten()
+            .collect::<Vec<_>>()
+    }
+
+    fn find_valid_positions_for_solid(&self, positions: Vec<(u32, u32)>) -> Vec<(u32, u32)> {
+        positions
+            .iter()
+            .map(|x| {
+                self.is_empty_and_inbound(x.0, x.1)
+                    .or(self.is_phase(x.0, x.1, Phase::Liquid))
+            })
             .take_while(|x| x.is_some())
             .flatten()
             .collect::<Vec<_>>()
@@ -134,7 +145,15 @@ impl Universe {
     }
 
     fn switch_cells(&mut self, old_idx: usize, new_idx: usize) {
-      self.cells.swap(old_idx, new_idx)
+        self.cells.swap(old_idx, new_idx)
+    }
+
+    fn move_solid_into_cell(&mut self, old_idx: usize, new_idx: usize){
+        if self.cells[new_idx].phase() == Phase::Liquid {
+            self.switch_cells(old_idx, new_idx)
+        } else {
+            self.move_element_into_empty_cell(old_idx, new_idx)
+        }
     }
 
     fn update_sand(&mut self, row: u32, col: u32) {
@@ -144,29 +163,25 @@ impl Universe {
         let downwards_positions: Vec<_> = (1..=cell_energy + 1).map(|i| (row + i, col)).collect();
         let left_positions = vec![(row + 1, col - 1)];
         let right_positions = vec![(row + 1, col + 1)];
-        let side_positions = if random()>0.5f64 { // cant use system dependant rand in wasm
-            vec![left_positions,right_positions].concat()
+        let side_positions = if random() > 0.5f64 {
+            // cant use system dependant rand in wasm
+            vec![left_positions, right_positions].concat()
         } else {
-            vec![right_positions,left_positions].concat()
+            vec![right_positions, left_positions].concat()
         };
 
-        let empty_downwards_positions = self.find_valid_positions(downwards_positions);
-        let water_downwards_position = self.is_phase(row+1, col, Phase::Liquid);
-        let empty_side_positions = self.find_valid_positions(side_positions);
+        let empty_downwards_positions = self.find_valid_positions_for_solid(downwards_positions);
+        let empty_side_positions = self.find_valid_positions_for_solid(side_positions);
 
         if let Some(down_pos) = empty_downwards_positions.last() {
             self.cells[idx].energy += 1; // When objects are falling they gain energy
             let new_idx = self.get_index(down_pos.0, down_pos.1);
-            self.move_element_into_empty_cell(idx, new_idx);
-        } else if let Some(w_down_pos) = water_downwards_position {
-            let new_idx = self.get_index(w_down_pos.0, w_down_pos.1);
-            self.switch_cells(idx, new_idx);
-        }
-        else if let Some(side_pos) = empty_side_positions.last() {
+            self.move_solid_into_cell(idx, new_idx);
+        } else if let Some(side_pos) = empty_side_positions.last() {
             let new_idx = self.get_index(side_pos.0, side_pos.1);
-            self.move_element_into_empty_cell(idx, new_idx);
+            self.move_solid_into_cell(idx, new_idx);
         } else {
-            self.cells[idx].energy = 0; 
+            self.cells[idx].energy = 0;
         }
     }
 
@@ -177,18 +192,18 @@ impl Universe {
         let downwards_positions: Vec<_> = (1..=cell_energy + 1).map(|i| (row + i, col)).collect();
         let left_down_positions = vec![(row + 1, col - 1)];
         let right_down_positions = vec![(row + 1, col + 1)];
-        let left_positions : Vec<_> = (1..=3).map(|i| (row , col-i)).collect();
-        let right_positions : Vec<_> = (1..=3).map(|i| (row , col+i)).collect();
-        
-        let side_down_positions = if random()>0.5f64 { 
-            vec![left_down_positions,right_down_positions].concat()
+        let left_positions: Vec<_> = (1..=3).map(|i| (row, col - i)).collect();
+        let right_positions: Vec<_> = (1..=3).map(|i| (row, col + i)).collect();
+
+        let side_down_positions = if random() > 0.5f64 {
+            vec![left_down_positions, right_down_positions].concat()
         } else {
-            vec![right_down_positions,left_down_positions].concat()
+            vec![right_down_positions, left_down_positions].concat()
         };
-        let side_positions = if random()>0.5f64 { 
-            vec![left_positions,right_positions].concat()
+        let side_positions = if random() > 0.5f64 {
+            vec![left_positions, right_positions].concat()
         } else {
-            vec![right_positions,left_positions].concat()
+            vec![right_positions, left_positions].concat()
         };
 
         let empty_downwards_positions = self.find_valid_positions(downwards_positions);
@@ -204,12 +219,11 @@ impl Universe {
             self.move_element_into_empty_cell(idx, new_idx);
         } else if let Some(side_pos) = empty_side_positions.last() {
             let new_idx = self.get_index(side_pos.0, side_pos.1);
-            self.cells[idx].energy = 0; 
+            self.cells[idx].energy = 0;
             self.move_element_into_empty_cell(idx, new_idx);
-        }else {
-            self.cells[idx].energy = 0; 
+        } else {
+            self.cells[idx].energy = 0;
         }
-            
     }
 }
 
