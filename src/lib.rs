@@ -21,6 +21,7 @@ pub enum CellType {
     Water = 2,
 }
 
+#[derive(PartialEq, Eq)]
 enum Phase {
     Dead,
     Solid,
@@ -66,8 +67,9 @@ impl Cell {
             return Phase::Dead;
         }
         if id_as_num < 2 {
-            return Phase::Liquid;
+            return Phase::Solid;
         }
+
         return Phase::Liquid;
     }
 }
@@ -98,10 +100,22 @@ impl Universe {
         None
     }
 
+    fn is_phase(&self, row: u32, col: u32, ele: Phase) -> Option<(u32, u32)>{
+        if !(row < self.height && col < self.width) {
+            return None; // This also works for -1 which gets converted to u32MAX
+        }
+        let idx = self.get_index(row, col);
+        if self.cells[idx].phase() == ele {
+            return Some((row, col));
+        }
+        None
+    }
+
     /// Get the dead and Sand values of the entire universe.
     pub fn get_cells(&self) -> &[Cell] {
         &self.cells
     }
+
 
     fn find_valid_positions(&self, positions: Vec<(u32, u32)>) -> Vec<(u32, u32)> {
         positions
@@ -119,6 +133,10 @@ impl Universe {
         self.cells[old_idx].kill_cell();
     }
 
+    fn switch_cells(&mut self, old_idx: usize, new_idx: usize) {
+      self.cells.swap(old_idx, new_idx)
+    }
+
     fn update_sand(&mut self, row: u32, col: u32) {
         let idx = self.get_index(row, col);
         let cell_energy = self.cells[idx].energy / 4;
@@ -132,14 +150,19 @@ impl Universe {
             vec![right_positions,left_positions].concat()
         };
 
-        let downwards_positions = self.find_valid_positions(downwards_positions);
-        let side_positions = self.find_valid_positions(side_positions);
+        let empty_downwards_positions = self.find_valid_positions(downwards_positions);
+        let water_downwards_position = self.is_phase(row+1, col, Phase::Liquid);
+        let empty_side_positions = self.find_valid_positions(side_positions);
 
-        if let Some(down_pos) = downwards_positions.last() {
+        if let Some(down_pos) = empty_downwards_positions.last() {
             self.cells[idx].energy += 1; // When objects are falling they gain energy
             let new_idx = self.get_index(down_pos.0, down_pos.1);
             self.move_element_into_empty_cell(idx, new_idx);
-        } else if let Some(side_pos) = side_positions.last() {
+        } else if let Some(w_down_pos) = water_downwards_position {
+            let new_idx = self.get_index(w_down_pos.0, w_down_pos.1);
+            self.switch_cells(idx, new_idx);
+        }
+        else if let Some(side_pos) = empty_side_positions.last() {
             let new_idx = self.get_index(side_pos.0, side_pos.1);
             self.move_element_into_empty_cell(idx, new_idx);
         } else {
@@ -168,18 +191,18 @@ impl Universe {
             vec![right_positions,left_positions].concat()
         };
 
-        let downwards_positions = self.find_valid_positions(downwards_positions);
-        let side_positions = self.find_valid_positions(side_positions);
-        let side_down_positions = self.find_valid_positions(side_down_positions);
+        let empty_downwards_positions = self.find_valid_positions(downwards_positions);
+        let empty_side_positions = self.find_valid_positions(side_positions);
+        let empty_side_down_positions = self.find_valid_positions(side_down_positions);
 
-        if let Some(down_pos) = downwards_positions.last() {
+        if let Some(down_pos) = empty_downwards_positions.last() {
             self.cells[idx].energy += 1; // When objects are falling they gain energy
             let new_idx = self.get_index(down_pos.0, down_pos.1);
             self.move_element_into_empty_cell(idx, new_idx);
-        } else if let Some(side_down_pos) = side_down_positions.last() {
+        } else if let Some(side_down_pos) = empty_side_down_positions.last() {
             let new_idx = self.get_index(side_down_pos.0, side_down_pos.1);
             self.move_element_into_empty_cell(idx, new_idx);
-        } else if let Some(side_pos) = side_positions.last() {
+        } else if let Some(side_pos) = empty_side_positions.last() {
             let new_idx = self.get_index(side_pos.0, side_pos.1);
             self.cells[idx].energy = 0; 
             self.move_element_into_empty_cell(idx, new_idx);
