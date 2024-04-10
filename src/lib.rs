@@ -1,4 +1,5 @@
 use wasm_bindgen::prelude::*;
+use web_sys::js_sys::Math::random;
 mod utils;
 
 /// Compile: wasm-pack build --target bundler
@@ -7,8 +8,8 @@ mod utils;
 
 // ? Since we calculate from top to bottom that creates a few problems relating to who will fall first
 
-const WIDTH : u32 = 64;
-const HEIGHT : u32 = 64;
+const WIDTH: u32 = 64;
+const HEIGHT: u32 = 64;
 
 /// Javascript can only store C style enums memory buffer
 #[wasm_bindgen]
@@ -31,6 +32,7 @@ enum Phase {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Cell {
     id: CellType,
+    energy: u32,
     has_been_updated: bool,
 }
 
@@ -42,15 +44,18 @@ impl Cell {
     fn update_cell(&mut self, ref_cell: Cell) {
         self.id = ref_cell.id;
         self.has_been_updated = true;
+        self.energy = ref_cell.energy;
     }
 
     fn kill_cell(&mut self) {
         self.id = CellType::Dead;
+        self.energy = 0;
     }
 
     fn new(ct: CellType) -> Self {
         return Cell {
             id: ct,
+            energy: 0,
             has_been_updated: true,
         };
     }
@@ -98,6 +103,15 @@ impl Universe {
         &self.cells
     }
 
+    fn find_valid_positions(&self, positions: Vec<(u32, u32)>) -> Vec<(u32, u32)> {
+        positions
+            .iter()
+            .map(|x| self.is_empty_and_inbound(x.0, x.1))
+            .take_while(|x| x.is_some())
+            .flatten()
+            .collect::<Vec<_>>()
+    }
+
     fn move_element_into_empty_cell(&mut self, old_idx: usize, new_idx: usize) {
         let copy_current_cell = self.cells[old_idx];
         self.cells[new_idx].update_cell(copy_current_cell);
@@ -107,36 +121,72 @@ impl Universe {
 
     fn update_sand(&mut self, row: u32, col: u32) {
         let idx = self.get_index(row, col);
+        let cell_energy = self.cells[idx].energy / 4;
 
-        let positions = vec![(row + 1, col), (row + 1, col - 1), (row + 1, col + 1)];
-        if let Some(new_pos) = positions
-            .iter()
-            .find_map(|x| self.is_empty_and_inbound(x.0, x.1))
-        {
-            let new_idx = self.get_index(new_pos.0, new_pos.1);
+        let downwards_positions: Vec<_> = (1..=cell_energy + 1).map(|i| (row + i, col)).collect();
+        let left_positions = vec![(row + 1, col - 1)];
+        let right_positions = vec![(row + 1, col + 1)];
+        let side_positions = if random()>0.5f64 { // cant use system dependant rand in wasm
+            vec![left_positions,right_positions].concat()
+        } else {
+            vec![right_positions,left_positions].concat()
+        };
 
+        let downwards_positions = self.find_valid_positions(downwards_positions);
+        let side_positions = self.find_valid_positions(side_positions);
+
+        if let Some(down_pos) = downwards_positions.last() {
+            self.cells[idx].energy += 1; // When objects are falling they gain energy
+            let new_idx = self.get_index(down_pos.0, down_pos.1);
             self.move_element_into_empty_cell(idx, new_idx);
+        } else if let Some(side_pos) = side_positions.last() {
+            let new_idx = self.get_index(side_pos.0, side_pos.1);
+            self.move_element_into_empty_cell(idx, new_idx);
+        } else {
+            self.cells[idx].energy = 0; 
         }
     }
 
     fn update_water(&mut self, row: u32, col: u32) {
         let idx = self.get_index(row, col);
+        let cell_energy = self.cells[idx].energy;
 
-        let positions = vec![
-            (row + 1, col),
-            (row + 1, col - 1),
-            (row + 1, col + 1),
-            (row, col - 1),
-            (row, col + 1),
-        ];
-        if let Some(new_pos) = positions
-            .iter()
-            .find_map(|x| self.is_empty_and_inbound(x.0, x.1))
-        {
-            let new_idx = self.get_index(new_pos.0, new_pos.1);
+        let downwards_positions: Vec<_> = (1..=cell_energy + 1).map(|i| (row + i, col)).collect();
+        let left_down_positions = vec![(row + 1, col - 1)];
+        let right_down_positions = vec![(row + 1, col + 1)];
+        let left_positions : Vec<_> = (1..=3).map(|i| (row , col-i)).collect();
+        let right_positions : Vec<_> = (1..=3).map(|i| (row , col+i)).collect();
+        
+        let side_down_positions = if random()>0.5f64 { 
+            vec![left_down_positions,right_down_positions].concat()
+        } else {
+            vec![right_down_positions,left_down_positions].concat()
+        };
+        let side_positions = if random()>0.5f64 { 
+            vec![left_positions,right_positions].concat()
+        } else {
+            vec![right_positions,left_positions].concat()
+        };
 
+        let downwards_positions = self.find_valid_positions(downwards_positions);
+        let side_positions = self.find_valid_positions(side_positions);
+        let side_down_positions = self.find_valid_positions(side_down_positions);
+
+        if let Some(down_pos) = downwards_positions.last() {
+            self.cells[idx].energy += 1; // When objects are falling they gain energy
+            let new_idx = self.get_index(down_pos.0, down_pos.1);
             self.move_element_into_empty_cell(idx, new_idx);
+        } else if let Some(side_down_pos) = side_down_positions.last() {
+            let new_idx = self.get_index(side_down_pos.0, side_down_pos.1);
+            self.move_element_into_empty_cell(idx, new_idx);
+        } else if let Some(side_pos) = side_positions.last() {
+            let new_idx = self.get_index(side_pos.0, side_pos.1);
+            self.cells[idx].energy = 0; 
+            self.move_element_into_empty_cell(idx, new_idx);
+        }else {
+            self.cells[idx].energy = 0; 
         }
+            
     }
 }
 
@@ -150,8 +200,8 @@ impl Universe {
             return;
         }
 
-        for row in 0..self.height {
-            for col in 0..self.width {
+        for row in (0..self.height).rev() {
+            for col in (0..self.width).rev() {
                 let idx = self.get_index(row, col);
                 let cell = self.cells[idx];
                 if cell.has_been_updated {
