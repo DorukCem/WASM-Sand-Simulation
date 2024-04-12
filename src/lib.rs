@@ -10,6 +10,7 @@ mod utils;
 
 const WIDTH: u32 = 64;
 const HEIGHT: u32 = 64;
+const SPREAD_FACTOR: u32 = 3;
 
 /// Javascript can only store C style enums memory buffer
 #[wasm_bindgen]
@@ -26,8 +27,6 @@ enum Phase {
     Dead,
     Solid,
     Liquid,
-    Immovable,
-    Gas,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,22 +41,11 @@ impl Cell {
         self.id = ct;
     }
 
-    fn update_cell(&mut self, ref_cell: Cell) {
-        self.id = ref_cell.id;
-        self.has_been_updated = true;
-        self.energy = ref_cell.energy;
-    }
-
-    fn kill_cell(&mut self) {
-        self.id = CellType::Dead;
-        self.energy = 0;
-    }
-
     fn new(ct: CellType) -> Self {
         return Cell {
             id: ct,
             energy: 0,
-            has_been_updated: true,
+            has_been_updated: false,
         };
     }
 
@@ -79,10 +67,8 @@ pub struct Universe {
     width: u32,
     height: u32,
     cells: Vec<Cell>,
-    tick_count: u8,
 }
 
-const TICK_INTERVAL: u8 = 1;
 
 impl Universe {
     fn get_index(&self, row: u32, column: u32) -> usize {
@@ -137,27 +123,15 @@ impl Universe {
             .collect::<Vec<_>>()
     }
 
-    fn move_element_into_empty_cell(&mut self, old_idx: usize, new_idx: usize) {
-        let copy_current_cell = self.cells[old_idx];
-        self.cells[new_idx].update_cell(copy_current_cell);
-
-        self.cells[old_idx].kill_cell();
-    }
 
     fn switch_cells(&mut self, old_idx: usize, new_idx: usize) {
         self.cells.swap(old_idx, new_idx)
     }
 
-    fn move_solid_into_cell(&mut self, old_idx: usize, new_idx: usize){
-        if self.cells[new_idx].phase() == Phase::Liquid {
-            self.switch_cells(old_idx, new_idx)
-        } else {
-            self.move_element_into_empty_cell(old_idx, new_idx)
-        }
-    }
 
     fn update_sand(&mut self, row: u32, col: u32) {
         let idx = self.get_index(row, col);
+        self.cells[idx].has_been_updated = true;
         let cell_energy = self.cells[idx].energy / 4;
 
         let downwards_positions: Vec<_> = (1..=cell_energy + 1).map(|i| (row + i, col)).collect();
@@ -176,10 +150,10 @@ impl Universe {
         if let Some(down_pos) = empty_downwards_positions.last() {
             self.cells[idx].energy += 1; // When objects are falling they gain energy
             let new_idx = self.get_index(down_pos.0, down_pos.1);
-            self.move_solid_into_cell(idx, new_idx);
+            self.switch_cells(idx, new_idx);
         } else if let Some(side_pos) = empty_side_positions.last() {
             let new_idx = self.get_index(side_pos.0, side_pos.1);
-            self.move_solid_into_cell(idx, new_idx);
+            self.switch_cells(idx, new_idx);
         } else {
             self.cells[idx].energy = 0;
         }
@@ -187,13 +161,14 @@ impl Universe {
 
     fn update_water(&mut self, row: u32, col: u32) {
         let idx = self.get_index(row, col);
+        self.cells[idx].has_been_updated = true;
         let cell_energy = self.cells[idx].energy;
 
         let downwards_positions: Vec<_> = (1..=cell_energy + 1).map(|i| (row + i, col)).collect();
         let left_down_positions = vec![(row + 1, col - 1)];
         let right_down_positions = vec![(row + 1, col + 1)];
-        let left_positions: Vec<_> = (1..=3).map(|i| (row, col - i)).collect();
-        let right_positions: Vec<_> = (1..=3).map(|i| (row, col + i)).collect();
+        let left_positions: Vec<_> = (1..=SPREAD_FACTOR).map(|i| (row, col - i)).collect();
+        let right_positions: Vec<_> = (1..=SPREAD_FACTOR).map(|i| (row, col + i)).collect();
 
         let side_down_positions = if random() > 0.5f64 {
             vec![left_down_positions, right_down_positions].concat()
@@ -213,14 +188,14 @@ impl Universe {
         if let Some(down_pos) = empty_downwards_positions.last() {
             self.cells[idx].energy += 1; // When objects are falling they gain energy
             let new_idx = self.get_index(down_pos.0, down_pos.1);
-            self.move_element_into_empty_cell(idx, new_idx);
+            self.switch_cells(idx, new_idx);
         } else if let Some(side_down_pos) = empty_side_down_positions.last() {
             let new_idx = self.get_index(side_down_pos.0, side_down_pos.1);
-            self.move_element_into_empty_cell(idx, new_idx);
+            self.switch_cells(idx, new_idx);
         } else if let Some(side_pos) = empty_side_positions.last() {
             let new_idx = self.get_index(side_pos.0, side_pos.1);
             self.cells[idx].energy = 0;
-            self.move_element_into_empty_cell(idx, new_idx);
+            self.switch_cells(idx, new_idx);
         } else {
             self.cells[idx].energy = 0;
         }
@@ -231,18 +206,11 @@ impl Universe {
 #[wasm_bindgen]
 impl Universe {
     pub fn tick(&mut self) {
-        // ! We might not need this part if we decide on 60 tick per secon
-        self.tick_count = (self.tick_count + 1) % TICK_INTERVAL;
-        if self.tick_count != 0 {
-            return;
-        }
-
         for row in (0..self.height).rev() {
             for col in (0..self.width).rev() {
                 let idx = self.get_index(row, col);
                 let cell = self.cells[idx];
                 if cell.has_been_updated {
-                    utils::log!("cont");
                     continue;
                 }
                 match cell.id {
@@ -266,7 +234,6 @@ impl Universe {
 
         let width = WIDTH;
         let height = HEIGHT;
-        let tick_count = 0;
 
         let cells = (0..width * height)
             .map(|_i| Cell::new(CellType::Dead))
@@ -276,7 +243,6 @@ impl Universe {
             width,
             height,
             cells,
-            tick_count,
         }
     }
 
