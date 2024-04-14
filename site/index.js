@@ -44,7 +44,7 @@ let animationId = null;
 
 const renderLoop = () => {
   fps_logger.render();
-  setCell();
+  setCells();
   drawBackground();
   // drawGrid();
   drawCells();
@@ -148,13 +148,24 @@ playPauseButton.addEventListener("click", event => {
   }
 });
 
-function setCell() {
-  if (being_held){
-    const {row, col} = mouseGridPos;
-    if (row >= 0 && row < height && col >= 0 && col < height)
-    {
-      universe.set_cell(row, col, selected_element);
-    } 
+function setCells() {
+  if (being_held) {
+    const { row, col } = mouseGridPos;
+    if (row >= 0 && row < height && col >= 0 && col < width) {
+      const radius = CURSOR_SIZE / 16;
+      const startRow = Math.max(row - radius, 0);
+      const endRow = Math.min(row + radius, height - 1);
+      const startCol = Math.max(col - radius, 0);
+      const endCol = Math.min(col + radius, width - 1);
+
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          if (Math.sqrt((r - row) ** 2 + (c - col) ** 2) <= radius) {
+            universe.set_cell(r, c, selected_element);
+          }
+        }
+      }
+    }
   }
 }
 

@@ -6,7 +6,6 @@ mod utils;
 /// Run: cd site
 ///      npm run serve
 
-// ? Since we calculate from top to bottom that creates a few problems relating to who will fall first
 
 const WIDTH: u32 = 64;
 const HEIGHT: u32 = 64;
