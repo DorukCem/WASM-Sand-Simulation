@@ -5,18 +5,21 @@ import { memory } from "../pkg/wasm_sand_sim_bg.wasm";
 
 // ! I want cell size to be determined by how big the user screen is
 const CELL_SIZE = 8; // px 
-const GRID_COLOR = "#CCCCCC";
-const DEAD_COLOR = "#FFFFFF";
-const SAND_COLOR = "#000000";
-const WATER_COLOR = "#0000FF";
+const GRID_COLOR = "#D1D1D1"; // Light gray for grid lines
+const DEAD_COLOR = "#FFFFFF"; // White for empty cells
+const SAND_COLOR = "#F4A460"; // Sandy brown for sand cells
+const WATER_COLOR = "#87CEEB"; // Light blue for water cells
+const ROCK_COLOR = '#A9A9A9'; // Dark gray for rock cells
+
 const CURSOR_SIZE = CELL_SIZE*4;
 const CURSOR_BORDER_WIDTH = 4;
 const CURSOR_COLOR = "#000000"
 
 const cellColors = {
-  [CellType.Dead]: DEAD_COLOR,
+  [CellType.Dead]: DEAD_COLOR,  
   [CellType.Water]: WATER_COLOR,
   [CellType.Sand]: SAND_COLOR,
+  [CellType.Rock]: ROCK_COLOR,
   // Add more cell types and colors as needed
 };
 
@@ -204,7 +207,11 @@ document.addEventListener("keydown", (event) => {
   else if (event.key === "w" || event.key === "W") {
     selected_element = CellType.Water
   }
-  console.log(selected_element)
+
+  else if (event.key === "r" || event.key === "R") {
+    selected_element = CellType.Rock
+  }
+  
 });
 
 // ------------ executes once

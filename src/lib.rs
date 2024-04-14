@@ -19,6 +19,7 @@ pub enum CellType {
     Dead = 0,
     Sand = 1,
     Water = 2,
+    Rock = 3,
 }
 
 #[derive(PartialEq, Eq)]
@@ -26,6 +27,7 @@ enum Phase {
     Dead,
     Solid,
     Liquid,
+    Immovable
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -57,7 +59,12 @@ impl Cell {
             return Phase::Solid;
         }
 
-        return Phase::Liquid;
+        if id_as_num < 3 {
+            return Phase::Liquid;
+        }
+
+        return Phase::Immovable
+
     }
 }
 
@@ -199,7 +206,13 @@ impl Universe {
             self.cells[idx].energy = 0;
         }
     }
+
+    fn update_rock(&mut self, row: u32, col: u32) {
+        let idx = self.get_index(row, col);
+        self.cells[idx].has_been_updated = true
+    }
 }
+
 
 /// Public methods, exported to JavaScript.
 #[wasm_bindgen]
@@ -216,6 +229,7 @@ impl Universe {
                     CellType::Dead => (),
                     CellType::Sand => self.update_sand(row, col),
                     CellType::Water => self.update_water(row, col),
+                    CellType::Rock => self.update_rock(row, col),
                 }
             }
         }
