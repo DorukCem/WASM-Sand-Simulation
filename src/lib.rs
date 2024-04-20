@@ -2,10 +2,6 @@ use wasm_bindgen::prelude::*;
 use web_sys::js_sys::Math::random;
 mod utils;
 
-/// Compile: wasm-pack build --target bundler
-/// Run: cd site
-///      npm run serve
-
 
 const WIDTH: u32 = 64;
 const HEIGHT: u32 = 64;

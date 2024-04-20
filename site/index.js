@@ -4,14 +4,14 @@ import fps_logger from "./measure_fps.js"
 import { memory } from "../pkg/wasm_sand_sim_bg.wasm";
 
 // ! I want cell size to be determined by how big the user screen is
-const CELL_SIZE = 8; // px 
+const CELL_SIZE = 3; // px 
 const GRID_COLOR = "#D1D1D1"; // Light gray for grid lines
 const DEAD_COLOR = "#FFFFFF"; // White for empty cells
 const SAND_COLOR = "#F4A460"; // Sandy brown for sand cells
 const WATER_COLOR = "#87CEEB"; // Light blue for water cells
 const ROCK_COLOR = '#A9A9A9'; // Dark gray for rock cells
 
-const CURSOR_SIZE = CELL_SIZE*4;
+const CURSOR_SIZE = 40;
 const CURSOR_BORDER_WIDTH = 4;
 const CURSOR_COLOR = "#000000"
 
@@ -25,8 +25,8 @@ const cellColors = {
 
 // Construct the universe, and get its width and height.
 const universe = Universe.new();
-universe.set_width(64 * 2);
-universe.set_height(64 * 2);
+universe.set_width(64 * 4);
+universe.set_height(64 * 4);
 const width = universe.width();
 const height = universe.height();
 
@@ -155,7 +155,7 @@ function setCells() {
   if (being_held) {
     const { row, col } = mouseGridPos;
     if (row >= 0 && row < height && col >= 0 && col < width) {
-      const radius = CURSOR_SIZE / 16;
+      const radius = CURSOR_SIZE / 8;
       const startRow = Math.max(row - radius, 0);
       const endRow = Math.min(row + radius, height - 1);
       const startCol = Math.max(col - radius, 0);
@@ -210,6 +210,10 @@ document.addEventListener("keydown", (event) => {
 
   else if (event.key === "r" || event.key === "R") {
     selected_element = CellType.Rock
+  }
+
+  else if (event.key === "e" || event.key === "E") {
+    selected_element = CellType.Dead
   }
   
 });
